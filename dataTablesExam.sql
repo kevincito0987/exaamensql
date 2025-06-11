@@ -540,3 +540,156 @@ ALTER TABLE `Precio_Pizza_Por_Presentacion` ADD FOREIGN KEY (`pizza_id_presentac
 ALTER TABLE `Precio_Pizza_Por_Presentacion` ADD FOREIGN KEY (`presentacion_pizza_id`) REFERENCES `Presentacion_Pizza`(`id_presentacion_pizza`);
 ALTER TABLE `Detalle_Pedido_Ingrediente_Extra` ADD FOREIGN KEY (`detalle_pedido_id`) REFERENCES `Detalles_Pedido`(`id_detalle_pedido`);
 ALTER TABLE `Detalle_Pedido_Ingrediente_Extra` ADD FOREIGN KEY (`ingrediente_id_detalle`) REFERENCES `Ingrediente`(`id_ingrediente`);
+
+
+-- Insertar datos de ejemplo en las tablas
+
+INSERT INTO `Pais` (`id_pais`, `nombre_pais`, `codigo_iso`) VALUES
+(1, 'Colombia', 'CO'),
+(2, 'Estados Unidos', 'US'),
+(3, 'México', 'MX');
+
+INSERT INTO `Departamento` (`id_departamento`, `pais_id_departamento`, `nombre_departamento`) VALUES
+(1, 1, 'Cundinamarca'),
+(2, 1, 'Antioquia'),
+(3, 2, 'California'),
+(4, 3, 'Ciudad de México');
+
+INSERT INTO `Ciudad` (`id_ciudad`, `departamento_id_ciudad`, `nombre_ciudad`) VALUES
+(1, 1, 'Bogotá'),
+(2, 1, 'Soacha'),
+(3, 2, 'Medellín'),
+(4, 3, 'Los Ángeles'),
+(5, 4, 'Ciudad de México');
+
+INSERT INTO `Direccion` (`id_direccion`, `cliente_id_direccion`, `pais_id_direccion`, `departamento_id_direccion`, `ciudad_id_direccion`, `complemento`, `codigo_postal`, `es_principal`) VALUES
+(1, 1, 1, 1, 1, 'Apartamento 101', '110111', TRUE),
+(2, 1, 1, 2, 2, 'Casa en el barrio', '250001', FALSE),
+(3, 2, 2, 3, 4, 'Suite 200', '90001', TRUE);
+
+-- Inserts para la tabla `Cliente`
+INSERT INTO `Cliente` (`id_cliente`, `nombres_cliente`, `apellidos_cliente`, `email`, `fecha_registro_cliente`) VALUES
+(1, 'Juan', 'Perez', 'juan.perez@example.com', '2023-01-15 10:30:00'),
+(2, 'Maria', 'Gomez', 'maria.gomez@example.com', '2023-02-20 14:00:00'),
+(3, 'Carlos', 'Ruiz', 'carlos.ruiz@example.com', '2023-03-10 09:15:00');
+
+-- Inserts para la tabla `Tipo_Telefono`
+INSERT INTO `Tipo_Telefono` (`id_tipo_telefono`, `nombre_tipo_telefono`, `descripcion`) VALUES
+(1, 'Celular', 'Número de teléfono móvil'),
+(2, 'Fijo', 'Número de teléfono fijo'),
+(3, 'Trabajo', 'Número de teléfono del trabajo');
+
+-- Inserts para la tabla `Telefono_Clientes`
+INSERT INTO `Telefono_Clientes` (`id_telefono_cliente`, `cliente_id_telefono`, `codigo_pais`, `numero_telefono`, `tipo_telefono_id`, `es_principal`) VALUES
+(1, 1, '+57', '3001234567', 1, TRUE),
+(2, 2, '+57', '3109876543', 1, TRUE),
+(3, 1, '+57', '6077890123', 2, FALSE);
+
+-- Inserts para la tabla `Tipo_metodo_pago`
+INSERT INTO `Tipo_metodo_pago` (`id_tipo_metodo_pago`, `nombre_tipo_metodo_pago`, `descricpcion_tipo_metodo_pago`) VALUES
+(1, 'Tarjeta de Crédito', 'Pago con tarjeta de crédito bancaria'),
+(2, 'Tarjeta de Débito', 'Pago con tarjeta de débito bancaria'),
+(3, 'Efectivo', 'Pago en efectivo al momento de la entrega'),
+(4, 'Online', 'Pago a través de plataforma en línea');
+
+-- Inserts para la tabla `Metodo_Pago`
+INSERT INTO `Metodo_Pago` (`id_metodo_pago`, `tipo_metodo_pago_id`, `nombre_metodo_pago`, `descripcion_metodo_pago`) VALUES
+(1, 1, 'Visa', 'Tarjeta Visa'),
+(2, 1, 'MasterCard', 'Tarjeta MasterCard'),
+(3, 3, 'Efectivo', 'Pago en efectivo'),
+(4, 4, 'PayPal', 'Pago con PayPal');
+
+-- Inserts para la tabla `Estado_Pedido`
+INSERT INTO `Estado_Pedido` (`id_estado_pedido`, `nombre_estado`) VALUES
+(1, 'Pendiente'),
+(2, 'En Preparación'),
+(3, 'En Camino'),
+(4, 'Entregado'),
+(5, 'Cancelado');
+
+-- Inserts para la tabla `Pedidos`
+INSERT INTO `Pedidos` (`id_pedido`, `cliente_id_pedido`, `fecha_hora_pedido`, `hora_recogida_estimada`, `metodo_pago_id`, `total_pedido`, `estado_pedido_id`, `pago_confirmado`, `instrucciones_especiales_cliente`) VALUES
+(1, 1, '2024-06-10 18:00:00', '18:45:00', 1, 35.50, 4, TRUE, 'Sin cebolla por favor.'),
+(2, 2, '2024-06-10 19:30:00', '20:15:00', 3, 22.00, 2, FALSE, 'Llamar al llegar.'),
+(3, 1, '2024-06-11 12:00:00', '12:45:00', 2, 48.75, 1, TRUE, 'Ninguna.');
+
+-- Inserts para la tabla `Tipo_Producto`
+INSERT INTO `Tipo_Producto` (`id_tipo_producto`, `nombre_tipo_producto`, `descripcion`) VALUES
+(1, 'Pizza', 'Producto de pizza personalizable'),
+(2, 'Bebida', 'Bebidas refrescantes'),
+(3, 'Combo', 'Combinación de productos');
+
+-- Inserts para la tabla `Producto`
+INSERT INTO `Producto` (`id_producto`, `nombre_producto`, `descripcion`, `tipo_producto_id`, `esta_activo`) VALUES
+(1, 'Pizza Margarita', 'Deliciosa pizza con tomate y mozzarella.', 1, TRUE),
+(2, 'Coca-Cola 350ml', 'Refresco de cola en lata.', 2, TRUE),
+(3, 'Combo Familiar', 'Pizza grande, 4 bebidas y pan de ajo.', 3, TRUE),
+(4, 'Pizza Hawaiana', 'Pizza con piña y jamón.', 1, TRUE);
+
+-- Inserts para la tabla `Pizza`
+INSERT INTO `Pizza` (`id_pizza`, `instrucciones_preparacion`) VALUES
+(1, 'Hornear a 200°C por 12 minutos.'),
+(4, 'Asegurarse que la piña este bien caramelizada.');
+
+-- Inserts para la tabla `Bebida`
+INSERT INTO `Bebida` (`id_bebida`, `capacidad_ml`) VALUES
+(2, 350);
+
+-- Inserts para la tabla `Combo`
+INSERT INTO `Combo` (`id_combo`, `nombre_combo`) VALUES
+(3, 'Combo Familiar');
+
+-- Inserts para la tabla `Componente_Combo`
+INSERT INTO `Componente_Combo` (`id_componente_combo`, `combo_id`, `producto_componente_id`, `cantidad`) VALUES
+(1, 3, 1, 1), -- Combo Familiar incluye Pizza Margarita
+(2, 3, 2, 4); -- Combo Familiar incluye 4 Coca-Colas
+
+-- Inserts para la tabla `Ingrediente`
+INSERT INTO `Ingrediente` (`id_ingrediente`, `nombre_ingrediente`, `descripcion`, `precio_adicional_extra`) VALUES
+(1, 'Mozzarella', 'Queso mozzarella fresco', 0.00),
+(2, 'Tomate', 'Salsa de tomate casera', 0.00),
+(3, 'Pepperoni', 'Rodajas de pepperoni picante', 2.50),
+(4, 'Champiñones', 'Champiñones frescos laminados', 1.50),
+(5, 'Piña', 'Trozos de piña', 1.00);
+
+-- Inserts para la tabla `Pizza_Ingrediente_Base`
+INSERT INTO `Pizza_Ingrediente_Base` (`id_pizza_ingrediente_base`, `pizza_id`, `ingrediente_id`) VALUES
+(1, 1, 1), -- Pizza Margarita tiene Mozzarella
+(2, 1, 2), -- Pizza Margarita tiene Tomate
+(3, 4, 1), -- Pizza Hawaiana tiene Mozzarella
+(4, 4, 2), -- Pizza Hawaiana tiene Tomate
+(5, 4, 5); -- Pizza Hawaiana tiene Piña
+
+-- Inserts para la tabla `Presentacion_Pizza`
+INSERT INTO `Presentacion_Pizza` (`id_presentacion_pizza`, `nombre_presentacion`, `descripcion`) VALUES
+(1, 'Personal', 'Pizza individual (20cm)'),
+(2, 'Mediana', 'Pizza para compartir (30cm)'),
+(3, 'Grande', 'Pizza familiar (40cm)');
+
+-- Inserts para la tabla `Precio_Vigente_Producto`
+INSERT INTO `Precio_Vigente_Producto` (`id_precio_vigente_producto`, `prducto_id_precio`, `precio_base`, `fecha_inicio_vigencia`, `fecha_fin_vigencia`) VALUES
+(1, 1, 15.00, '2024-01-01', '2024-12-31'), -- Precio Pizza Margarita
+(2, 2, 2.50, '2024-01-01', '2024-12-31'), -- Precio Coca-Cola
+(3, 3, 40.00, '2024-01-01', '2024-12-31'), -- Precio Combo Familiar
+(4, 4, 18.00, '2024-01-01', '2024-12-31'); -- Precio Pizza Hawaiana
+
+-- Inserts para la tabla `Precio_Pizza_Por_Presentacion`
+INSERT INTO `Precio_Pizza_Por_Presentacion` (`id_precio_pizza_presentacion`, `pizza_id_presentacion`, `presentacion_pizza_id`, `precio_base`, `fecha_inicio_vigencia`, `fecha_fin_vigencia`) VALUES
+(1, 1, 1, 10.00, '2024-01-01', '2024-12-31'), -- Pizza Margarita Personal
+(2, 1, 2, 15.00, '2024-01-01', '2024-12-31'), -- Pizza Margarita Mediana
+(3, 1, 3, 20.00, '2024-01-01', '2024-12-31'), -- Pizza Margarita Grande
+(4, 4, 1, 12.00, '2024-01-01', '2024-12-31'), -- Pizza Hawaiana Personal
+(5, 4, 2, 18.00, '2024-01-01', '2024-12-31'), -- Pizza Hawaiana Mediana
+(6, 4, 3, 24.00, '2024-01-01', '2024-12-31'); -- Pizza Hawaiana Grande
+
+-- Inserts para la tabla `Detalles_Pedido`
+INSERT INTO `Detalles_Pedido` (`id_detalle_pedido`, `pedido_id_detalle`, `producto_id_detalle`, `cantidad`, `precio_unitario_aplicado`, `presentacion_pizza_id_detalle`, `subtotal_linea`) VALUES
+(1, 1, 1, 1, 15.00, 2, 15.00), -- Pedido 1: Pizza Margarita Mediana
+(2, 1, 2, 2, 2.50, 1, 5.00),   -- Pedido 1: 2 Coca-Cola (presentacion_pizza_id_detalle puede ser 1 para bebidas o el ID por defecto)
+(3, 2, 4, 1, 12.00, 1, 12.00), -- Pedido 2: Pizza Hawaiana Personal
+(4, 3, 3, 1, 40.00, 1, 40.00); -- Pedido 3: Combo Familiar (presentacion_pizza_id_detalle puede ser 1 para combos)
+
+-- Inserts para la tabla `Detalle_Pedido_Ingrediente_Extra`
+INSERT INTO `Detalle_Pedido_Ingrediente_Extra` (`id_detalle_pedido_ingrediente_extra`, `detalle_pedido_id`, `ingrediente_id_detalle`, `cantidad_extra`, `precio_extra_aplicado`) VALUES
+(1, 1, 3, 1, 2.50), -- Pedido 1, detalle 1 (Pizza Margarita): 1 extra de Pepperoni
+(2, 3, 4, 1, 1.50); -- Pedido 2, detalle 3 (Pizza Hawaiana): 1 extra de Champiñones
