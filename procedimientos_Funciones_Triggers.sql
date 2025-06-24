@@ -293,122 +293,188 @@ DROP PROCEDURE IF EXISTS ps_cancelar_pedido;
 
 
 DELIMITER $$
--- Procedimiento: ps_cancelar_pedido
--- Descripción: Marca un pedido como "cancelado", elimina todas sus líneas de detalle,
---              y devuelve el stock de los productos e ingredientes asociados.
--- Parámetros de entrada:
---   p_pedido_id INT: El ID del pedido que se va a cancelar.
--- Returns:
---   A message indicating the result of the operation and the number of deleted detail lines.
+
 CREATE PROCEDURE ps_cancelar_pedido (
     IN p_pedido_id INT
 )
 BEGIN
-    DECLARE v_lineas_detalles_eliminadas INT DEFAULT 0;
-    DECLARE v_lineas_extras_eliminadas INT DEFAULT 0;
-    DECLARE v_pedido_cancelado_id INT DEFAULT 6; -- Assuming 'Canceled' has ID 6 in the Estado_Pedido table
-
-    -- Variables for Detalles_Pedido cursor
-    DECLARE v_detalle_id INT;
-    DECLARE v_producto_id INT;
-    DECLARE v_cantidad_detalle INT;
-
-    -- Variables for Detalle_Pedido_Ingrediente_Extra cursor
-    DECLARE v_ingrediente_id INT;
-    DECLARE v_cantidad_extra INT;
-
-    -- Flag to check if cursor is done
-    DECLARE done INT DEFAULT FALSE;
-
-    -- Cursor to iterate over order details
-    DECLARE cur_detalles CURSOR FOR
-        SELECT id_detalle_pedido, producto_id_detalle, cantidad
-        FROM Detalles_Pedido
-        WHERE pedido_id_detalle = p_pedido_id;
-
-    -- Cursor to iterate over extra ingredients of the order details
-    DECLARE cur_extras CURSOR FOR
-        SELECT dpi.ingrediente_id_detalle, dpi.cantidad_extra
-        FROM Detalle_Pedido_Ingrediente_Extra dpi
-        JOIN Detalles_Pedido dp ON dpi.detalle_pedido_id = dp.id_detalle_pedido
-        WHERE dp.pedido_id_detalle = p_pedido_id;
-
-    -- Continue handler for cursors
-    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-
-    -- Error handler: If any SQL exception occurs, the transaction is rolled back.
+    DECLARE v_lineas_detalle INT DEFAULT 0;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error en la transacción. No se pudo cancelar el pedido o eliminar sus detalles y devolver stock.';
+        SELECT 'Error en la transacción. No se pudo cancelar el pedido.' AS Mensaje;
     END;
 
     START TRANSACTION;
 
-    -- Step 1: Return stock for extra ingredients first (if any)
-    OPEN cur_extras;
-    SET done = FALSE; -- Reset done flag for the new cursor
-    read_extras_loop: LOOP
-        FETCH cur_extras INTO v_ingrediente_id, v_cantidad_extra;
-        IF done THEN
-            LEAVE read_extras_loop;
-        END IF;
+    -- 1. Devolver stock de productos
+    UPDATE Producto p
+    JOIN (
+        SELECT producto_id_detalle, SUM(cantidad) AS cantidad_total
+        FROM Detalles_Pedido
+        WHERE pedido_id_detalle = p_pedido_id
+        GROUP BY producto_id_detalle
+    ) x ON p.id_producto = x.producto_id_detalle
+    SET p.cantidad_stock = p.cantidad_stock + x.cantidad_total;
 
-        -- Update ingredient stock
-        UPDATE Ingrediente
-        SET cantidad_stock = cantidad_stock + v_cantidad_extra
-        WHERE id_ingrediente = v_ingrediente_id;
-    END LOOP;
-    CLOSE cur_extras;
+    -- 2. (Opcional) Devolver stock de ingredientes extra si aplica
+    /*
+    UPDATE Ingrediente i
+    JOIN (
+        SELECT dpi.ingrediente_id_detalle, SUM(dpi.cantidad_extra) AS cantidad_total
+        FROM Detalle_Pedido_Ingrediente_Extra dpi
+        JOIN Detalles_Pedido dp ON dpi.detalle_pedido_id = dp.id_detalle_pedido
+        WHERE dp.pedido_id_detalle = p_pedido_id
+        GROUP BY dpi.ingrediente_id_detalle
+    ) x ON i.id_ingrediente = x.ingrediente_id_detalle
+    SET i.cantidad_stock = i.cantidad_stock + x.cantidad_total;
+    */
 
-    -- Delete extra ingredient details associated with this order
-    DELETE FROM Detalle_Pedido_Ingrediente_Extra
-    WHERE detalle_pedido_id IN (SELECT id_detalle_pedido FROM Detalles_Pedido WHERE pedido_id_detalle = p_pedido_id);
-    SET v_lineas_extras_eliminadas = ROW_COUNT();
+    -- 3. Contar detalles antes de borrar
+    SELECT COUNT(*) INTO v_lineas_detalle FROM Detalles_Pedido WHERE pedido_id_detalle = p_pedido_id;
 
-    -- Step 2: Return product stock and delete detail lines
-    OPEN cur_detalles;
-    SET done = FALSE; -- Reset done flag for the new cursor
-    read_detalles_loop: LOOP
-        FETCH cur_detalles INTO v_detalle_id, v_producto_id, v_cantidad_detalle;
-        IF done THEN
-            LEAVE read_detalles_loop;
-        END IF;
-
-        -- Update product stock
-        UPDATE Producto
-        SET cantidad_stock = cantidad_stock + v_cantidad_detalle
-        WHERE id_producto = v_producto_id;
-
-    END LOOP;
-    CLOSE cur_detalles;
-
-    -- Delete all detail lines associated with this order
-    DELETE FROM Detalles_Pedido
-    WHERE pedido_id_detalle = p_pedido_id;
-    SET v_lineas_detalles_eliminadas = ROW_COUNT();
-
-    -- Step 3: Update the order status to 'Canceled'
-    UPDATE Pedidos
-    SET estado_pedido_id = v_pedido_cancelado_id,
-        pago_confirmado = FALSE -- Assume payment is not confirmed upon cancellation
-    WHERE id_pedido = p_pedido_id;
+    -- 4. Borrar el pedido (todo lo relacionado se borra en cascada)
+    DELETE FROM Pedidos WHERE id_pedido = p_pedido_id;
 
     COMMIT;
 
-    -- Return a message with the result
-    SELECT CONCAT(
-        'Pedido ID ', p_pedido_id, ' has been marked as canceled. ',
-        'Deleted ', v_lineas_detalles_eliminadas, ' detail lines and ',
-        v_lineas_extras_eliminadas, ' extra ingredient lines. ',
-        'Product and ingredient stock has been returned.'
-    ) AS Mensaje;
+    SELECT CONCAT('Pedido ', p_pedido_id, ' cancelado. Se eliminaron ', v_lineas_detalle, ' líneas de detalle.') AS Mensaje;
+END $$
+
+DELIMITER ;
+
+CALL ps_cancelar_pedido(1);
+
+SELECT * FROM `Pedidos`;
+
+-- **`ps_facturar_pedido`**
+-- Crea la factura asociada a un pedido dado (`p_pedido_id`). Debe:
+
+-- - Calcular el total sumando precios de pizzas × cantidad,
+-- - Insertar en `factura`.
+-- - Devolver el `factura_id` generado.
+
+DROP PROCEDURE IF EXISTS ps_facturar_pedido;
+DELIMITER $$
+
+CREATE PROCEDURE ps_facturar_pedido (
+    IN p_pedido_id INT
+)
+BEGIN
+    -- Declaración de variables
+    DECLARE v_subtotal DECIMAL(10,2);
+    DECLARE v_impuestos DECIMAL(10,2);
+    DECLARE v_total DECIMAL(10,2);
+    DECLARE v_id_factura INT;
+    DECLARE v_cliente_id INT;
+    DECLARE v_numero_factura VARCHAR(50);
+    DECLARE v_fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    DECLARE v_estado_factura VARCHAR(50) DEFAULT 'Emitida';
+    DECLARE v_pedido_existe INT DEFAULT 0;
+
+    -- 1. Verificar si ya existe una factura para este pedido
+    SELECT id_factura
+      INTO v_id_factura
+      FROM Facturacion
+     WHERE pedido_id_factura = p_pedido_id
+     LIMIT 1;
+
+    IF v_id_factura IS NOT NULL THEN
+        -- Ya existe una factura, mostrar datos de la factura y los datos del cliente al lado del id_cliente
+        SELECT
+            f.cliente_id_factura,
+            c.nombres_cliente,
+            c.apellidos_cliente,
+            f.id_factura,
+            f.pedido_id_factura,
+            f.numero_factura,
+            f.fecha_emision,
+            f.subtotal_productos,
+            f.impuestos,
+            f.estado_factura,
+            f.total_factura
+        FROM Facturacion f
+        JOIN Cliente c ON f.cliente_id_factura = c.id_cliente
+        WHERE f.pedido_id_factura = p_pedido_id;
+    ELSE
+        -- 2. Verificar que el pedido existe
+        SELECT COUNT(*)
+          INTO v_pedido_existe
+          FROM Pedidos
+         WHERE id_pedido = p_pedido_id;
+
+        IF v_pedido_existe = 0 THEN
+            SIGNAL SQLSTATE '45001'
+            SET MESSAGE_TEXT = 'No existe un pedido con ese ID.';
+        END IF;
+
+        -- 3. Calcular el subtotal sumando los subtotales de los detalles del pedido
+        SELECT SUM(subtotal_linea)
+          INTO v_subtotal
+          FROM Detalles_Pedido
+         WHERE pedido_id_detalle = p_pedido_id;
+
+        IF v_subtotal IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'El pedido no tiene detalles y no puede facturarse.';
+        END IF;
+
+        -- 4. Calcular los impuestos y el total
+        SET v_impuestos = ROUND(v_subtotal * 0.19, 2);
+        SET v_total = v_subtotal + v_impuestos;
+
+        -- 5. Obtener el id del cliente
+        SELECT cliente_id_pedido
+          INTO v_cliente_id
+          FROM Pedidos
+         WHERE id_pedido = p_pedido_id;
+
+        -- 6. Generar número de factura
+        SET v_numero_factura = UUID();
+
+        -- 7. Insertar la factura en la tabla Facturacion
+        INSERT INTO Facturacion (
+            pedido_id_factura,
+            cliente_id_factura,
+            numero_factura,
+            fecha_emision,
+            subtotal_productos,
+            impuestos,
+            estado_factura,
+            total_factura
+        ) VALUES (
+            p_pedido_id,
+            v_cliente_id,
+            v_numero_factura,
+            v_fecha,
+            v_subtotal,
+            v_impuestos,
+            v_estado_factura,
+            v_total
+        );
+
+        SET v_id_factura = LAST_INSERT_ID();
+
+        -- 8. Mostrar la factura recién creada junto con los datos del cliente al lado del id_cliente
+        SELECT
+            f.cliente_id_factura,
+            c.nombres_cliente,
+            c.apellidos_cliente,
+            f.id_factura,
+            f.pedido_id_factura,
+            f.numero_factura,
+            f.fecha_emision,
+            f.subtotal_productos,
+            f.impuestos,
+            f.estado_factura,
+            f.total_factura
+        FROM Facturacion f
+        JOIN Cliente c ON f.cliente_id_factura = c.id_cliente
+        WHERE f.id_factura = v_id_factura;
+    END IF;
 
 END $$
 DELIMITER ;
 
--- EXAMPLE: Cancel an order
--- Replace '1' with an existing order ID you want to cancel.
--- Ensure that the order with ID 1 exists in your 'Pedidos' table and has associated details,
--- and that the products and ingredients in those details have stock in the Producto and Ingrediente tables.
-CALL ps_cancelar_pedido(1);
+CALL ps_facturar_pedido(10);
+SELECT * FROM Facturacion;
