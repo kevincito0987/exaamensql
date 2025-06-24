@@ -37,35 +37,29 @@ SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE Pais (
     id_pais INTEGER PRIMARY KEY AUTO_INCREMENT,
     nombre_pais VARCHAR(100) NOT NULL,
-    codigo_iso CHAR(2) NOT NULL
+    codigo_iso CHAR(2) NOT NULL,
+    UNIQUE (nombre_pais, codigo_iso)
 );
--- Índices para búsqueda eficiente
-CREATE UNIQUE INDEX idx_unique_pais_nombre_codigo ON Pais (nombre_pais, codigo_iso);
-
 
 -- Tabla: Departamento
 CREATE TABLE Departamento (
     id_departamento INTEGER PRIMARY KEY AUTO_INCREMENT,
     pais_id_departamento INTEGER NOT NULL,
     nombre_departamento VARCHAR(100) NOT NULL,
-    FOREIGN KEY (pais_id_departamento) REFERENCES Pais(id_pais)
+    FOREIGN KEY (pais_id_departamento) REFERENCES Pais(id_pais) ON DELETE CASCADE,
+    UNIQUE (pais_id_departamento, nombre_departamento)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_departamento_pais_nombre ON Departamento (pais_id_departamento, nombre_departamento);
 CREATE INDEX idx_fk_departamento_pais_id ON Departamento (pais_id_departamento);
-
 
 -- Tabla: Ciudad
 CREATE TABLE Ciudad (
     id_ciudad INTEGER PRIMARY KEY AUTO_INCREMENT,
     departamento_id_ciudad INTEGER NOT NULL,
     nombre_ciudad VARCHAR(100) NOT NULL,
-    FOREIGN KEY (departamento_id_ciudad) REFERENCES Departamento(id_departamento)
+    FOREIGN KEY (departamento_id_ciudad) REFERENCES Departamento(id_departamento) ON DELETE CASCADE,
+    UNIQUE (departamento_id_ciudad, nombre_ciudad)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_ciudad_departamento_nombre ON Ciudad (departamento_id_ciudad, nombre_ciudad);
 CREATE INDEX idx_fk_ciudad_departamento_id ON Ciudad (departamento_id_ciudad);
-
 
 -- Tabla: Cliente
 CREATE TABLE Cliente (
@@ -75,10 +69,8 @@ CREATE TABLE Cliente (
     email VARCHAR(255) NOT NULL UNIQUE,
     fecha_registro_cliente TIMESTAMP NOT NULL
 );
--- Índices para búsqueda eficiente
 CREATE INDEX idx_cliente_nombre_apellido ON Cliente (nombres_cliente, apellidos_cliente);
 CREATE INDEX idx_cliente_fecha_registro ON Cliente (fecha_registro_cliente);
-
 
 -- Tabla: Direccion
 CREATE TABLE Direccion (
@@ -88,16 +80,13 @@ CREATE TABLE Direccion (
     complemento VARCHAR(255) NOT NULL,
     codigo_postal VARCHAR(20) NOT NULL,
     es_principal BOOLEAN NOT NULL,
-    FOREIGN KEY (cliente_id_direccion) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (ciudad_id_direccion) REFERENCES Ciudad(id_ciudad)
+    FOREIGN KEY (cliente_id_direccion) REFERENCES Cliente(id_cliente) ON DELETE CASCADE,
+    FOREIGN KEY (ciudad_id_direccion) REFERENCES Ciudad(id_ciudad) ON DELETE CASCADE,
+    UNIQUE (cliente_id_direccion, codigo_postal)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_direccion_cliente_codigopostal ON Direccion (cliente_id_direccion, codigo_postal);
 CREATE INDEX idx_fk_direccion_ciudad_id ON Direccion (ciudad_id_direccion);
 CREATE INDEX idx_fk_direccion_cliente_id ON Direccion (cliente_id_direccion);
--- Índice opcional para búsquedas por si es principal (si es una consulta frecuente)
 CREATE INDEX idx_direccion_es_principal ON Direccion (es_principal);
-
 
 -- Tabla: Tipo_Telefono
 CREATE TABLE Tipo_Telefono (
@@ -105,8 +94,6 @@ CREATE TABLE Tipo_Telefono (
     nombre_tipo_telefono VARCHAR(100) NOT NULL UNIQUE,
     descripcion TEXT NOT NULL
 );
--- UNIQUE index on nombre_tipo_telefono handles indexing. No new index needed.
-
 
 -- Tabla: Telefono_Clientes
 CREATE TABLE Telefono_Clientes (
@@ -116,15 +103,12 @@ CREATE TABLE Telefono_Clientes (
     numero_telefono VARCHAR(20) NOT NULL,
     tipo_telefono_id INTEGER NOT NULL,
     es_principal BOOLEAN NOT NULL,
-    FOREIGN KEY (cliente_id_telefono) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (tipo_telefono_id) REFERENCES Tipo_Telefono(id_tipo_telefono)
+    FOREIGN KEY (cliente_id_telefono) REFERENCES Cliente(id_cliente) ON DELETE CASCADE,
+    FOREIGN KEY (tipo_telefono_id) REFERENCES Tipo_Telefono(id_tipo_telefono) ON DELETE RESTRICT,
+    UNIQUE (cliente_id_telefono, codigo_pais, numero_telefono)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_telefono_cliente_num ON Telefono_Clientes (cliente_id_telefono, codigo_pais, numero_telefono);
 CREATE INDEX idx_fk_telefono_clientes_tipo_id ON Telefono_Clientes (tipo_telefono_id);
--- Índice opcional para búsquedas por si es principal
 CREATE INDEX idx_telefono_clientes_es_principal ON Telefono_Clientes (es_principal);
-
 
 -- Tabla: Tipo_Producto
 CREATE TABLE Tipo_Producto (
@@ -132,10 +116,8 @@ CREATE TABLE Tipo_Producto (
     nombre_tipo_producto VARCHAR(200) NOT NULL UNIQUE,
     descripcion TEXT NOT NULL
 );
--- UNIQUE index on nombre_tipo_producto handles indexing. No new index needed.
 
-
--- Tabla: Producto (General)
+-- Tabla: Producto
 CREATE TABLE Producto (
     id_producto INTEGER PRIMARY KEY AUTO_INCREMENT,
     nombre_producto VARCHAR(200) NOT NULL,
@@ -143,15 +125,12 @@ CREATE TABLE Producto (
     tipo_producto_id INTEGER NOT NULL,
     esta_activo BOOLEAN NOT NULL,
     cantidad_stock INTEGER NOT NULL,
-    FOREIGN KEY (tipo_producto_id) REFERENCES Tipo_Producto(id_tipo_producto)
+    FOREIGN KEY (tipo_producto_id) REFERENCES Tipo_Producto(id_tipo_producto) ON DELETE RESTRICT,
+    UNIQUE (nombre_producto, tipo_producto_id)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_producto_nombre_tipo ON Producto (nombre_producto, tipo_producto_id);
 CREATE INDEX idx_fk_producto_tipo_id ON Producto (tipo_producto_id);
--- Índices opcionales para filtrado y control de inventario
 CREATE INDEX idx_producto_esta_activo ON Producto (esta_activo);
 CREATE INDEX idx_producto_cantidad_stock ON Producto (cantidad_stock);
-
 
 -- Tabla: Precio_Vigente_Producto
 CREATE TABLE Precio_Vigente_Producto (
@@ -160,42 +139,33 @@ CREATE TABLE Precio_Vigente_Producto (
     precio_base DECIMAL(10,2) NOT NULL,
     fecha_inicio_vigencia DATE NOT NULL,
     fecha_fin_vigencia DATE NOT NULL,
-    FOREIGN KEY (producto_id_precio) REFERENCES Producto(id_producto)
+    FOREIGN KEY (producto_id_precio) REFERENCES Producto(id_producto) ON DELETE CASCADE,
+    UNIQUE (producto_id_precio, fecha_inicio_vigencia)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_precio_vigente_producto_fecha ON Precio_Vigente_Producto (producto_id_precio, fecha_inicio_vigencia);
 CREATE INDEX idx_fk_precio_vigente_producto_id ON Precio_Vigente_Producto (producto_id_precio);
--- Índice para búsquedas por rango de fechas
 CREATE INDEX idx_precio_vigente_producto_fechas ON Precio_Vigente_Producto (fecha_inicio_vigencia, fecha_fin_vigencia);
-
 
 -- Tabla: Pizza (Especialización de Producto)
 CREATE TABLE Pizza (
-    id_pizza INTEGER PRIMARY KEY, -- También FK a Producto
+    id_pizza INTEGER PRIMARY KEY,
     instrucciones_preparacion TEXT NOT NULL,
-    FOREIGN KEY (id_pizza) REFERENCES Producto(id_producto)
+    FOREIGN KEY (id_pizza) REFERENCES Producto(id_producto) ON DELETE CASCADE
 );
--- PK already provides index. No new index needed.
-
 
 -- Tabla: Bebida (Especialización de Producto)
 CREATE TABLE Bebida (
-    id_bebida INTEGER PRIMARY KEY, -- También FK a Producto
+    id_bebida INTEGER PRIMARY KEY,
     capacidad_ml INTEGER NOT NULL,
     capacidad VARCHAR(50) NOT NULL,
-    FOREIGN KEY (id_bebida) REFERENCES Producto(id_producto)
+    FOREIGN KEY (id_bebida) REFERENCES Producto(id_producto) ON DELETE CASCADE
 );
--- PK already provides index. No new index needed.
-
 
 -- Tabla: Combo (Especialización de Producto)
 CREATE TABLE Combo (
-    id_combo INTEGER PRIMARY KEY, -- También FK a Producto
-    nombre_combo VARCHAR(100) NOT NULL UNIQUE, -- Añadido UNIQUE por lógica de negocio
-    FOREIGN KEY (id_combo) REFERENCES Producto(id_producto)
+    id_combo INTEGER PRIMARY KEY,
+    nombre_combo VARCHAR(100) NOT NULL UNIQUE,
+    FOREIGN KEY (id_combo) REFERENCES Producto(id_producto) ON DELETE CASCADE
 );
--- PK and UNIQUE index on nombre_combo already provide indexing. No new index needed.
-
 
 -- Tabla: Componente_Combo
 CREATE TABLE Componente_Combo (
@@ -203,38 +173,32 @@ CREATE TABLE Componente_Combo (
     combo_id INTEGER NOT NULL,
     producto_componente_id INTEGER NOT NULL,
     cantidad INTEGER NOT NULL,
-    FOREIGN KEY (combo_id) REFERENCES Combo(id_combo),
-    FOREIGN KEY (producto_componente_id) REFERENCES Producto(id_producto)
+    FOREIGN KEY (combo_id) REFERENCES Combo(id_combo) ON DELETE CASCADE,
+    FOREIGN KEY (producto_componente_id) REFERENCES Producto(id_producto) ON DELETE RESTRICT,
+    UNIQUE (combo_id, producto_componente_id)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_componente_combo_producto ON Componente_Combo (combo_id, producto_componente_id);
 CREATE INDEX idx_fk_componente_combo_id ON Componente_Combo (combo_id);
 CREATE INDEX idx_fk_componente_combo_producto_id ON Componente_Combo (producto_componente_id);
-
 
 -- Tabla: Ingrediente
 CREATE TABLE Ingrediente (
     id_ingrediente INTEGER PRIMARY KEY AUTO_INCREMENT,
-    nombre_ingrediente VARCHAR(200) NOT NULL UNIQUE, -- Añadido UNIQUE por lógica de negocio
+    nombre_ingrediente VARCHAR(200) NOT NULL UNIQUE,
     descripcion TEXT NOT NULL,
     precio_adicional_extra DECIMAL(10,2) NOT NULL
 );
--- PK and UNIQUE index on nombre_ingrediente already provide indexing. No new index needed.
-
 
 -- Tabla: Pizza_Ingrediente_Base
 CREATE TABLE Pizza_Ingrediente_Base (
     id_pizza_ingrediente_base INTEGER PRIMARY KEY AUTO_INCREMENT,
     pizza_id INTEGER NOT NULL,
     ingrediente_id INTEGER NOT NULL,
-    FOREIGN KEY (pizza_id) REFERENCES Pizza(id_pizza),
-    FOREIGN KEY (ingrediente_id) REFERENCES Ingrediente(id_ingrediente)
+    FOREIGN KEY (pizza_id) REFERENCES Pizza(id_pizza) ON DELETE CASCADE,
+    FOREIGN KEY (ingrediente_id) REFERENCES Ingrediente(id_ingrediente) ON DELETE RESTRICT,
+    UNIQUE (pizza_id, ingrediente_id)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_pizza_ingrediente_base ON Pizza_Ingrediente_Base (pizza_id, ingrediente_id);
 CREATE INDEX idx_fk_pizza_ingrediente_base_pizza_id ON Pizza_Ingrediente_Base (pizza_id);
 CREATE INDEX idx_fk_pizza_ingrediente_base_ingrediente_id ON Pizza_Ingrediente_Base (ingrediente_id);
-
 
 -- Tabla: Presentacion_Pizza
 CREATE TABLE Presentacion_Pizza (
@@ -242,8 +206,6 @@ CREATE TABLE Presentacion_Pizza (
     nombre_presentacion VARCHAR(50) NOT NULL UNIQUE,
     descripcion TEXT NOT NULL
 );
--- PK and UNIQUE index on nombre_presentacion already provide indexing. No new index needed.
-
 
 -- Tabla: Precio_Pizza_Por_Presentacion
 CREATE TABLE Precio_Pizza_Por_Presentacion (
@@ -253,23 +215,18 @@ CREATE TABLE Precio_Pizza_Por_Presentacion (
     precio_base DECIMAL(10,2) NOT NULL,
     fecha_inicio_vigencia DATE NOT NULL,
     fecha_fin_vigencia DATE NOT NULL,
-    FOREIGN KEY (pizza_id_presentacion) REFERENCES Pizza(id_pizza),
-    FOREIGN KEY (presentacion_pizza_id) REFERENCES Presentacion_Pizza(id_presentacion_pizza)
+    FOREIGN KEY (pizza_id_presentacion) REFERENCES Pizza(id_pizza) ON DELETE CASCADE,
+    FOREIGN KEY (presentacion_pizza_id) REFERENCES Presentacion_Pizza(id_presentacion_pizza) ON DELETE CASCADE
 );
--- Índices para búsqueda eficiente y FK
 CREATE INDEX idx_fk_precio_pizza_presentacion_pizza_id ON Precio_Pizza_Por_Presentacion (pizza_id_presentacion);
 CREATE INDEX idx_fk_precio_pizza_presentacion_presentacion_id ON Precio_Pizza_Por_Presentacion (presentacion_pizza_id);
--- Índice para búsquedas por rango de fechas
 CREATE INDEX idx_precio_pizza_presentacion_fechas ON Precio_Pizza_Por_Presentacion (fecha_inicio_vigencia, fecha_fin_vigencia);
-
 
 -- Tabla: Estado_Pedido
 CREATE TABLE Estado_Pedido (
     id_estado_pedido INTEGER PRIMARY KEY AUTO_INCREMENT,
     nombre_estado VARCHAR(50) NOT NULL UNIQUE
 );
--- PK and UNIQUE index on nombre_estado already provide indexing. No new index needed.
-
 
 -- Tabla: Tipo_metodo_pago
 CREATE TABLE Tipo_metodo_pago (
@@ -277,8 +234,6 @@ CREATE TABLE Tipo_metodo_pago (
     nombre_tipo_metodo_pago VARCHAR(100) NOT NULL UNIQUE,
     descricpcion_tipo_metodo_pago TEXT NOT NULL
 );
--- PK and UNIQUE index on nombre_tipo_metodo_pago already provide indexing. No new index needed.
-
 
 -- Tabla: Metodo_Pago
 CREATE TABLE Metodo_Pago (
@@ -286,12 +241,10 @@ CREATE TABLE Metodo_Pago (
     tipo_metodo_pago_id INTEGER NOT NULL,
     nombre_metodo_pago VARCHAR(100) NOT NULL,
     descripcion_metodo_pago TEXT NOT NULL,
-    FOREIGN KEY (tipo_metodo_pago_id) REFERENCES Tipo_metodo_pago(id_tipo_metodo_pago)
+    FOREIGN KEY (tipo_metodo_pago_id) REFERENCES Tipo_metodo_pago(id_tipo_metodo_pago) ON DELETE RESTRICT,
+    UNIQUE (nombre_metodo_pago)
 );
--- Índices para búsqueda eficiente y FK
 CREATE INDEX idx_fk_metodo_pago_tipo_id ON Metodo_Pago (tipo_metodo_pago_id);
-CREATE UNIQUE INDEX idx_unique_metodo_pago_nombre ON Metodo_Pago (nombre_metodo_pago); -- Asumo que el nombre es único
-
 
 -- Tabla: Pedidos
 CREATE TABLE Pedidos (
@@ -304,18 +257,15 @@ CREATE TABLE Pedidos (
     estado_pedido_id INTEGER NOT NULL,
     pago_confirmado BOOLEAN NOT NULL,
     instrucciones_especiales_cliente TEXT NOT NULL,
-    FOREIGN KEY (cliente_id_pedido) REFERENCES Cliente(id_cliente),
-    FOREIGN KEY (metodo_pago_id) REFERENCES Metodo_Pago(id_metodo_pago),
-    FOREIGN KEY (estado_pedido_id) REFERENCES Estado_Pedido(id_estado_pedido)
+    FOREIGN KEY (cliente_id_pedido) REFERENCES Cliente(id_cliente) ON DELETE CASCADE,
+    FOREIGN KEY (metodo_pago_id) REFERENCES Metodo_Pago(id_metodo_pago) ON DELETE RESTRICT,
+    FOREIGN KEY (estado_pedido_id) REFERENCES Estado_Pedido(id_estado_pedido) ON DELETE RESTRICT
 );
--- Índices para búsqueda eficiente y FK
 CREATE INDEX idx_fk_pedidos_cliente_id ON Pedidos (cliente_id_pedido);
 CREATE INDEX idx_fk_pedidos_metodo_pago_id ON Pedidos (metodo_pago_id);
 CREATE INDEX idx_fk_pedidos_estado_pedido_id ON Pedidos (estado_pedido_id);
--- Índices para búsquedas por fecha/hora y estado
 CREATE INDEX idx_pedidos_fecha_hora ON Pedidos (fecha_hora_pedido);
 CREATE INDEX idx_pedidos_pago_confirmado ON Pedidos (pago_confirmado);
-
 
 -- Tabla: Detalles_Pedido
 CREATE TABLE Detalles_Pedido (
@@ -325,16 +275,14 @@ CREATE TABLE Detalles_Pedido (
     cantidad INTEGER NOT NULL,
     presentacion_pizza_id_detalle INTEGER NOT NULL,
     subtotal_linea DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (pedido_id_detalle) REFERENCES Pedidos(id_pedido),
-    FOREIGN KEY (producto_id_detalle) REFERENCES Producto(id_producto),
-    FOREIGN KEY (presentacion_pizza_id_detalle) REFERENCES Presentacion_Pizza(id_presentacion_pizza)
+    FOREIGN KEY (pedido_id_detalle) REFERENCES Pedidos(id_pedido) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id_detalle) REFERENCES Producto(id_producto) ON DELETE RESTRICT,
+    FOREIGN KEY (presentacion_pizza_id_detalle) REFERENCES Presentacion_Pizza(id_presentacion_pizza) ON DELETE RESTRICT,
+    UNIQUE (pedido_id_detalle, producto_id_detalle, presentacion_pizza_id_detalle)
 );
--- Índices para búsqueda eficiente y FK
-CREATE UNIQUE INDEX idx_unique_detalles_pedido_prod_pres ON Detalles_Pedido (pedido_id_detalle, producto_id_detalle, presentacion_pizza_id_detalle);
 CREATE INDEX idx_fk_detalles_pedido_pedido_id ON Detalles_Pedido (pedido_id_detalle);
 CREATE INDEX idx_fk_detalles_pedido_producto_id ON Detalles_Pedido (producto_id_detalle);
 CREATE INDEX idx_fk_detalles_pedido_presentacion_id ON Detalles_Pedido (presentacion_pizza_id_detalle);
-
 
 -- Tabla: Detalle_Pedido_Ingrediente_Extra
 CREATE TABLE Detalle_Pedido_Ingrediente_Extra (
@@ -343,51 +291,41 @@ CREATE TABLE Detalle_Pedido_Ingrediente_Extra (
     ingrediente_id_detalle INTEGER NOT NULL,
     cantidad_extra INTEGER NOT NULL,
     precio_extra_aplicado DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (detalle_pedido_id) REFERENCES Detalles_Pedido(id_detalle_pedido),
-    FOREIGN KEY (ingrediente_id_detalle) REFERENCES Ingrediente(id_ingrediente)
+    FOREIGN KEY (detalle_pedido_id) REFERENCES Detalles_Pedido(id_detalle_pedido) ON DELETE CASCADE,
+    FOREIGN KEY (ingrediente_id_detalle) REFERENCES Ingrediente(id_ingrediente) ON DELETE RESTRICT
 );
--- Índices para búsqueda eficiente y FK
 CREATE INDEX idx_fk_detalle_pedido_ingrediente_extra_detalle_id ON Detalle_Pedido_Ingrediente_Extra (detalle_pedido_id);
 CREATE INDEX idx_fk_detalle_pedido_ingrediente_extra_ingrediente_id ON Detalle_Pedido_Ingrediente_Extra (ingrediente_id_detalle);
 
-
--- Tabla: Ingredientes_Pizza (Nota: esta tabla en tu definición es diferente a Pizza_Ingrediente_Base)
--- Asumo que es una tabla de relación con un "tipo de pizza" y total, que parece más una tabla de informes o un diseño distinto.
--- Si es una tabla de relación M:M entre Pizza, Tipo_Pizza y Ingrediente, su PK compuesta ya la indexa.
+-- Tabla: Ingredientes_Pizza
 CREATE TABLE Ingredientes_Pizza (
     pizza_id INTEGER NOT NULL,
-    pizza_tipo_id INTEGER NOT NULL, -- Asumiendo que existe una tabla Tipo_Pizza para esta FK
+    pizza_tipo_id INTEGER NOT NULL,
     ingrediente_id INTEGER NOT NULL,
     total_pizza DECIMAL(10,2) NOT NULL,
     PRIMARY KEY (pizza_id, pizza_tipo_id, ingrediente_id),
-    FOREIGN KEY (pizza_id) REFERENCES Pizza(id_pizza),
-    FOREIGN KEY (ingrediente_id) REFERENCES Ingrediente(id_ingrediente)
-    -- NOTA: Se asume que pizza_tipo_id es una FK a una tabla Tipo_Pizza, que no fue proporcionada.
-    -- Si esa tabla existiera, la FK sería: FOREIGN KEY (pizza_tipo_id) REFERENCES Tipo_Pizza(id_tipo_pizza)
+    FOREIGN KEY (pizza_id) REFERENCES Pizza(id_pizza) ON DELETE CASCADE,
+    FOREIGN KEY (ingrediente_id) REFERENCES Ingrediente(id_ingrediente) ON DELETE RESTRICT
 );
--- PK already provides index. No new index needed unless specific queries benefit from partial indexes.
 
-
--- Tabla: Facturacion (Facturas en tu definición)
+-- Tabla: Facturacion
 CREATE TABLE Facturacion (
     id_factura INTEGER PRIMARY KEY AUTO_INCREMENT,
-    pedido_id_factura INTEGER NOT NULL UNIQUE, -- UNIQUE para relación 1:1 con Pedido
+    pedido_id_factura INTEGER NOT NULL UNIQUE,
     cliente_id_factura INTEGER NOT NULL,
-    numero_factura VARCHAR(50) NOT NULL UNIQUE, -- El número de factura es único
+    numero_factura VARCHAR(50) NOT NULL UNIQUE,
     fecha_emision TIMESTAMP NOT NULL,
     subtotal_productos DECIMAL(10,2) NOT NULL,
     impuestos DECIMAL(10,2) NOT NULL,
     estado_factura VARCHAR(50) NOT NULL,
     total_factura DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (pedido_id_factura) REFERENCES Pedidos(id_pedido),
-    FOREIGN KEY (cliente_id_factura) REFERENCES Cliente(id_cliente)
+    FOREIGN KEY (pedido_id_factura) REFERENCES Pedidos(id_pedido) ON DELETE CASCADE,
+    FOREIGN KEY (cliente_id_factura) REFERENCES Cliente(id_cliente) ON DELETE CASCADE
 );
--- Índices para búsqueda eficiente y FK
 CREATE INDEX idx_fk_facturacion_cliente_id ON Facturacion (cliente_id_factura);
-CREATE INDEX idx_fk_facturacion_pedido_id ON Facturacion (pedido_id_factura); -- Aunque es UNIQUE, explícito para FK
+CREATE INDEX idx_fk_facturacion_pedido_id ON Facturacion (pedido_id_factura);
 CREATE INDEX idx_facturacion_fecha_emision ON Facturacion (fecha_emision);
 CREATE INDEX idx_facturacion_estado ON Facturacion (estado_factura);
-
 
 -- Tabla: Transacciones_Pago
 CREATE TABLE Transacciones_Pago (
@@ -396,11 +334,10 @@ CREATE TABLE Transacciones_Pago (
     metodo_pago_id_transaccion INTEGER NOT NULL,
     monto_pagado DECIMAL(10,2) NOT NULL,
     fecha_pago TIMESTAMP NOT NULL,
-    referencia_externa VARCHAR(255) NOT NULL, -- Asumo NOT NULL para referencia
-    FOREIGN KEY (factura_id_transaccion) REFERENCES Facturacion(id_factura),
-    FOREIGN KEY (metodo_pago_id_transaccion) REFERENCES Metodo_Pago(id_metodo_pago)
+    referencia_externa VARCHAR(255) NOT NULL,
+    FOREIGN KEY (factura_id_transaccion) REFERENCES Facturacion(id_factura) ON DELETE CASCADE,
+    FOREIGN KEY (metodo_pago_id_transaccion) REFERENCES Metodo_Pago(id_metodo_pago) ON DELETE RESTRICT
 );
--- Índices para búsqueda eficiente y FK
 CREATE INDEX idx_fk_transacciones_pago_factura_id ON Transacciones_Pago (factura_id_transaccion);
 CREATE INDEX idx_fk_transacciones_pago_metodo_id ON Transacciones_Pago (metodo_pago_id_transaccion);
 CREATE INDEX idx_transacciones_pago_fecha_pago ON Transacciones_Pago (fecha_pago);
